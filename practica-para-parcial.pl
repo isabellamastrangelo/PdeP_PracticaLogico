@@ -39,9 +39,13 @@ descubrimiento(a3, pulpo_dumbo, [extremidades(10), color(gris)], 3900, 23, obser
 
 
 %--------- PREDICADOS -------
+zonas(fotica).
+zonas(batial).
+zonas(abisal).
+zonas(hadal).
 
 zonaOceanica(Profundidad, fotica):-
-    Profundidad =< 610.
+    Profundidad =< 610. %se podria haber hecho con between
 zonaOceanica(Profundidad, batial):-
     Profundidad >= 1000, 
     Profundidad =< 4000.
@@ -51,7 +55,7 @@ zonaOceanica(Profundidad, abisal):-
 zonaOceanica(Profundidad, hadal):-
     Profundidad > 6000.
 
-favoritaDelPublico(EspeciesFavs):-
+favoritaDelPublico(EspeciesFavs):- %el la hizo distinta, con el forall
     findall(Cantidad, vistas(_, Cantidad), Vistas),
     max_list(Vistas, Max),
     vistas(Hora, Max),
@@ -61,9 +65,16 @@ zonaDescubrimiento(Especie, Zona):-
     descubrimiento(_, Especie, _, Profundidad, _, _),
     zonaOceanica(Profundidad, Zona).
 
-/*zonaConMaxDescubrimientos(ZonaMax):-
-    findall(Zona, (descubrimiento(_,_,_,Profundidad,_,_), zonaOceanica(Profundidad, Zona)), Zonas),
- TERMINAR!!!*/   
+zonaConMaxDescubrimientos(Zona) :-
+    descubrimientosPorZona(Zona, Cantidad),
+    forall(
+        (descubrimientosPorZona(OtraZona, OtraCantidad), Zona \= OtraZona),
+        OtraCantidad < Cantidad
+    ).
+descubrimientosPorZona(Zona, Cantidad):-
+    zonas(Zona),
+    findall(Zona, zonaDescubrimiento(_, Zona), EspeciesEnEsaZona),
+    length(EspeciesEnEsaZona, Cantidad).
 
 promedioVistas(Promedio):-
     findall(Vistas, vistas(_, Vistas), TodasLasVistas),
@@ -74,13 +85,14 @@ promedioVistas(Promedio):-
 variacionProfundidad(HoraInicio, HoraFin, Variacion):-
     descubrimiento(_, _, _, ProfundidadInicio, HoraInicio, _),
     descubrimiento(_, _, _, ProfundidadFin, HoraFin, _),
+    HoraInicio < HoraFin, 
     Variacion is ProfundidadFin - ProfundidadInicio.
 
-descensoMasRapido(HoraInicio, HoraFin):-
-    VariacionMaxima is 0,
-    forall((variacionProfundidad(HoraInicioCaso, HoraFinCaso, Variacion), Variacion > VariacionMaxima), (Variacion is VariacionMaxima, HoraInicio is HoraInicioCaso, HoraFin is HoraFinCaso)).
+%descensoMasRapido(HoraInicio, HoraFin):-
+ %   VariacionMaxima is 0,
+  %  forall((variacionProfundidad(HoraInicioCaso, HoraFinCaso, Variacion), Variacion > VariacionMaxima), (Variacion is VariacionMaxima, HoraInicio is HoraInicioCaso, HoraFin is HoraFinCaso)).
 
-descensoMasRapido(Hora1, Hora2) :- %% ESTO ES CUAL ES EL MAYOR DESCENSO, NO EL MAS RAPIDO
+mayorDescenso(Hora1, Hora2) :- %% ESTO ES CUAL ES EL MAYOR DESCENSO, NO EL MAS RAPIDO (funciona igual)
     findall((Variacion, HoraInicio, HoraFin),
             variacionProfundidad(HoraInicio, HoraFin, Variacion),
             ListaVariaciones),
@@ -89,21 +101,30 @@ descensoMasRapido(Hora1, Hora2) :- %% ESTO ES CUAL ES EL MAYOR DESCENSO, NO EL M
     Hora1 is HoraInicio,
     Hora2 is HoraFin.
 
-%NO FUNCIONA ESTA!!!
+descensoMasRapido(Hora1, Hora2, MayorVelocidad):-
+    findall((Velocidad, HoraInicio, HoraFin),
+            (variacionProfundidad(HoraInicio, HoraFin, Variacion), Velocidad is Variacion / (HoraFin - HoraInicio)), %se podria abstraer en otra funcion y hacer con forall 
+            ListaVariaciones),
+    max_member((Velocidad, HoraInicio, HoraFin), ListaVariaciones),
+    MayorVelocidad is Velocidad,
+    Hora1 is HoraInicio,
+    Hora2 is HoraFin.
+
 nivelDeNovedad(Descubrimiento, Nivel):-
     descubrimiento(Descubrimiento, _, Caracteristicas, _, _, Metodo),
-    forall(Puntaje, (member(Caracteristica, Caracteristicas), unidadDeConocimiento(Caracteristica, Puntaje), Puntajes)),
+    findall(Puntaje, (member(Caracteristica, Caracteristicas), unidadDeConocimiento(Caracteristica, Puntaje)), Puntajes),
     sum_list(Puntajes, NivelAux),
     aumentoPorMetodo(NivelAux, Metodo, Nivel).
 
 unidadDeConocimiento(luminisciencia, 5).
 unidadDeConocimiento(extremidades(Cantidad), Cantidad).
-unidadDeConocimiento(color(rojo), 5).
+unidadDeConocimiento(color(rojo), 5). %separar en algo de color peligroso
 unidadDeConocimiento(color(amarillo), 5).
-unidadDeConocimiento(color(Tono), 3):-
+unidadDeConocimiento(color(Tono), Nivel):-
     Tono \= rojo,
-    Tono \= amarillo.
-unidadDeConocimiento(Caracteristica, 10):-
+    Tono \= amarillo,
+    Nivel is 3.
+unidadDeConocimiento(Caracteristica, 10):- %separar entre conocidos y no conocidos
     Caracteristica \= luminisciencia,
     Caracteristica \= extremidades(_),
     Caracteristica \= color(_).
