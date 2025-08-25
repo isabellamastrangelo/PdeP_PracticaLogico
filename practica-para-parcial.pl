@@ -138,3 +138,5 @@ aumentoPorMetodo(NivelAux, observado, NivelAux).
 
 
 
+
+
